@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 class QuizRequest(BaseModel):
-    news_id: int
+    newsId: int
     content: str
 
 # 1. 자식 모델을 먼저 선언해야 합니다.
@@ -22,4 +22,4 @@ class QuizSchema(BaseModel):
     quizOptionList: Optional[List[QuizOptionSchema]] = None
 
 class QuizListResponse(BaseModel):
-    quizzes: List[QuizSchema]
+    quizList: List[QuizSchema]

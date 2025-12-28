@@ -24,7 +24,7 @@ async def generate_economy_quiz(data: QuizRequest):
     위 내용을 바탕으로 경제 퀴즈 3개를 생성해줘.
     결과는 반드시 다음 JSON 스키마를 따를 것:
     {{
-      "quizzes": [
+      "quizList": [
         {{
           "quizType": "MULTIPLE_CHOICE 또는 OX",
           "question": "질문 내용",

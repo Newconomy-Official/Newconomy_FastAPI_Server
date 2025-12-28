@@ -4,7 +4,7 @@ from app.service.ai_service import generate_economy_quiz
 
 router = APIRouter()
 
-@router.post("/generateQuiz", response_model=QuizListResponse)
+@router.post("/generate", response_model=QuizListResponse)
 async def create_quiz(request: QuizRequest):
     """
     Spring Boot로부터 뉴스 데이터를 받아 퀴즈를 생성하고 반환함
