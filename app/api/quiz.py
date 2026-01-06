@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from app.schema.quiz import QuizRequest, QuizListResponse
-from app.service.ai_service import generate_economy_quiz
+from app.schema.quiz import QuizRequest, QuizListResponse, TermQuizRequest
+from app.service.ai_service import generate_economy_quiz, generate_term_quiz
 
 router = APIRouter()
 
@@ -18,4 +18,15 @@ async def create_quiz(request: QuizRequest):
         
     except Exception as e:
         # 에러 발생 시 500 에러 반환
+        raise HTTPException(status_code=500, detail=str(e))
+@router.post("/generate/terms", response_model=QuizListResponse)
+async def create_term_quiz_endpoint(request: TermQuizRequest):
+    try:
+        # 데이터가 비어있는지 체크
+        if not request.terms:
+             raise HTTPException(status_code=400, detail="용어 리스트가 비어있습니다.")
+
+        result = await generate_term_quiz(request)
+        return result
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

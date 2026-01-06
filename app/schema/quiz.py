@@ -23,3 +23,12 @@ class QuizSchema(BaseModel):
 
 class QuizListResponse(BaseModel):
     quizList: List[QuizSchema]
+
+class EconomyTerm(BaseModel):
+    termId: int
+    termName: str
+    simpleExplanation: str
+    detailedExplanation: str
+
+class TermQuizRequest(BaseModel):
+    terms: List[EconomyTerm]
