@@ -3,7 +3,7 @@ import json
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import random
-from app.schema.quiz import QuizRequest, TermQuizRequest, EconomyTerm
+from app.schema.quiz import QuizRequest, TermQuizRequest
 
 load_dotenv()
 
@@ -150,4 +150,81 @@ async def generate_term_quiz(data: TermQuizRequest):
     except Exception as e:
         print(f"용어 퀴즈 생성 중 오류 발생: {e}")
         # 필요 시 에러를 다시 던지거나 적절한 에러 응답 리턴
+        raise e
+
+async def generate_news_term(content: str) -> dict:
+    # Enum 카테고리 정의 (프롬프트 주입용)
+    categories_info = """
+    - MONETARY: 통화/금융 (금리, 통화량, 중앙은행 등)
+    - INVESTMENT: 투자/증시 (주식, 채권, 펀드 등)
+    - REAL_ESTATE: 부동산 (아파트, 청약, 담보대출 등)
+    - MACRO: 거시경제 (GDP, 인플레이션, 경기순환 등)
+    - MICRO: 미시경제 (수요/공급, 시장구조 등)
+    - LIFE: 생활금융 (보험, 연금, 세금 등)
+    """
+
+    system_instruction = (
+       "너는 금융 및 경제 전문 언어 모델이야. "
+        "제공된 뉴스 본문에서 중요하거나 일반인이 이해하기 어려운 경제 용어를 추출해. "
+        "각 용어에 대해 본문 내에서의 정확한 시작 인덱스(startIndex)와 끝 인덱스(endIndex)를 계산해야 해. "
+        "인덱스는 0부터 시작하며, 공백을 포함해 정확한 위치를 찾아야 해."
+    )
+    
+    user_prompt = f"""
+    내용: {content}
+
+    위 뉴스 본문에서 핵심 경제 용어를 3~5개 추출해줘.
+    
+    [카테고리 분류 기준]
+    반드시 아래의 Key 값 중 하나를 선택해야 해:
+    {categories_info}
+
+    [제약 사항]
+    1. termCategory: 반드시 위의 Key 값(MONETARY, INVESTMENT 등) 중 하나만 사용할 것.
+    2. startIndex/endIndex: 본문 내 0부터 시작하는 정확한 문자 위치를 계산할 것.
+    3. difficultyLevel: 1(쉬움) ~ 5(매우 어려움)
+    4. detailedExplanation: 뉴스 맥락을 반영한 상세 설명.
+
+    [결과 JSON 스키마]
+    {{
+      "terms": [
+        {{
+          "termName": "용어명",
+          "simpleExplanation": "간단 설명",
+          "detailedExplanation": "상세 설명",
+          "termCategory": "MONETARY", 
+          "difficultyLevel": 3,
+          "startIndex": 10,
+          "endIndex": 14
+          "contextSentence": "용어가 사용된 문장 전체"
+        }}
+      ]
+    }}
+    """
+
+    try:
+        response = await client.chat.completions.create(
+            model="solar-pro",
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            stream=False,
+            response_format={ "type": "json_object" }
+        )
+
+        ai_content = response.choices[0].message.content
+        result = json.loads(ai_content)
+
+        # 인덱스 보정 로직 (선택 사항이지만 권장)
+        for term in result.get('terms', []):
+            found_idx = content.find(term['termName'])
+            if found_idx != -1:
+                term['startIndex'] = found_idx
+                term['endIndex'] = found_idx + len(term['termName'])
+
+        return result
+
+    except Exception as e:
+        print(f"용어 추출 중 오류 발생: {e}")
         raise e
