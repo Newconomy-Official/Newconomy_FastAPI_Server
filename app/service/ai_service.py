@@ -47,7 +47,7 @@ async def generate_economy_quiz(data: QuizRequest):
 
     try:
         response = await client.chat.completions.create(
-            model="solar-pro",
+            model="solar-mini",
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_prompt}
@@ -135,7 +135,7 @@ async def generate_term_quiz(data: TermQuizRequest):
     try:
         # 5. AI 요청
         response = await client.chat.completions.create(
-            model="solar-pro", # 또는 사용하시는 모델명
+            model="solar-mini", # 또는 사용하시는 모델명
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_prompt}
@@ -152,6 +152,9 @@ async def generate_term_quiz(data: TermQuizRequest):
         # 필요 시 에러를 다시 던지거나 적절한 에러 응답 리턴
         raise e
 
+
+
+
 async def generate_news_term(content: str) -> dict:
     # Enum 카테고리 정의 (프롬프트 주입용)
     categories_info = """
@@ -165,24 +168,22 @@ async def generate_news_term(content: str) -> dict:
 
     system_instruction = (
        "너는 금융 및 경제 전문 언어 모델이야. "
-        "제공된 뉴스 본문에서 중요하거나 일반인이 이해하기 어려운 경제 용어를 추출해. "
-        "각 용어에 대해 본문 내에서의 정확한 시작 인덱스(startIndex)와 끝 인덱스(endIndex)를 계산해야 해. "
-        "인덱스는 0부터 시작하며, 공백을 포함해 정확한 위치를 찾아야 해."
+        "제공된 뉴스 본문에서 일반인이 이해하기 어려운 경제 용어를 추출해. 쉬운건 추출하지 말고 ex) 주식, 대출, 경기 등 "
+        "각 용어에 대해 간단한 설명과 상세 설명, 카테고리, 난이도를 포함해야 해. "
     )
     
     user_prompt = f"""
     내용: {content}
 
-    위 뉴스 본문에서 핵심 경제 용어를 3~5개 추출해줘.
-    
+    위 뉴스 본문에서 핵심 경제 용어를 추출해줘 필요한 만큼 생성하되 10개를 20개를 넘기지 마.
+    termName은 반드시 뉴스 본문에 적힌 글자 그대로 추출해줘. (임의로 괄호나 영문을 덧붙이지 마)"
     [카테고리 분류 기준]
     반드시 아래의 Key 값 중 하나를 선택해야 해:
     {categories_info}
 
     [제약 사항]
     1. termCategory: 반드시 위의 Key 값(MONETARY, INVESTMENT 등) 중 하나만 사용할 것.
-    2. startIndex/endIndex: 본문 내 0부터 시작하는 정확한 문자 위치를 계산할 것.
-    3. difficultyLevel: 1(쉬움) ~ 5(매우 어려움)
+    3. difficultyLevel: 1(쉬움) ~ 5(매우 어려움) 
     4. detailedExplanation: 뉴스 맥락을 반영한 상세 설명.
 
     [결과 JSON 스키마]
@@ -194,9 +195,6 @@ async def generate_news_term(content: str) -> dict:
           "detailedExplanation": "상세 설명",
           "termCategory": "MONETARY", 
           "difficultyLevel": 3,
-          "startIndex": 10,
-          "endIndex": 14
-          "contextSentence": "용어가 사용된 문장 전체"
         }}
       ]
     }}
@@ -204,7 +202,7 @@ async def generate_news_term(content: str) -> dict:
 
     try:
         response = await client.chat.completions.create(
-            model="solar-pro",
+            model="solar-mini",
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_prompt}
@@ -216,15 +214,39 @@ async def generate_news_term(content: str) -> dict:
         ai_content = response.choices[0].message.content
         result = json.loads(ai_content)
 
-        # 인덱스 보정 로직 (선택 사항이지만 권장)
-        for term in result.get('terms', []):
-            found_idx = content.find(term['termName'])
-            if found_idx != -1:
-                term['startIndex'] = found_idx
-                term['endIndex'] = found_idx + len(term['termName'])
+        terms_list = result.get('terms')
+        
+        if not isinstance(terms_list, list):
+            terms_list = []
+        
+        # 용어가 있을 때만 인덱스 추가
+        if len(terms_list) > 0:
+            terms_list = add_indices_to_terms(content, terms_list)
+        
+        # 🔧 반환값을 명시적으로 구성
+        return {
+            "terms": terms_list
+        }
 
-        return result
-
+    except json.JSONDecodeError as e:
+        print(f"JSON 파싱 오류: {e}")
+        print(f"AI 응답: {response.choices[0].message.content if 'response' in locals() else 'No response'}")
+        return {"terms": []}  # 🔧 안전한 기본값 반환
+    
     except Exception as e:
         print(f"용어 추출 중 오류 발생: {e}")
-        raise e
+        return {"terms": []}  # 🔧 안전한 기본값 반환 (raise 제거)
+    
+def add_indices_to_terms(content: str, terms: list):
+    for term in terms:
+        term_name = term.get("termName", "")
+        start_index = content.find(term_name)
+        if start_index != -1:
+            end_index = start_index + len(term_name)
+            term["startIndex"] = start_index
+            term["endIndex"] = end_index
+        else:
+            term["startIndex"] = -1
+            term["endIndex"] = -1
+        term["contextSentence"] = ""
+    return terms
