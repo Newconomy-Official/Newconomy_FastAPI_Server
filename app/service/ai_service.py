@@ -46,7 +46,7 @@ async def generate_economy_quiz(data: QuizRequest):
     try:
         # 공식 SDK 호출 (404 에러 해결)
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             config={
                 "system_instruction": system_instruction,
                 "response_mime_type": "application/json",
@@ -108,7 +108,7 @@ async def generate_term_quiz(data: TermQuizRequest):
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             config={
                 "system_instruction": system_instruction,
                 "response_mime_type": "application/json",
@@ -154,7 +154,7 @@ async def generate_news_term(content: str) -> dict:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             config={
                 "system_instruction": system_instruction,
                 "response_mime_type": "application/json",
