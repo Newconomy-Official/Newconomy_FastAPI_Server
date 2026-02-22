@@ -133,6 +133,8 @@ async def generate_news_term(content: str) -> dict:
     system_instruction = (
         "너는 초고도로 전문화된 금융 경제 전문 모델이야. "
         "뉴스 본문에서 '전문적인 경제 지식'이 필요한 용어만 추출해. "
+        "카테고리는 반드시"+categories_info+" 중에서 선택해. "
+        "응답은 반드시 JSON 형식으로만 해야 해."
     )
     
     user_prompt = f"""
@@ -165,6 +167,10 @@ async def generate_news_term(content: str) -> dict:
         result = json.loads(response.text)
         terms_list = result.get('terms', [])
         
+        for term in terms_list:
+            if term.get("termCategory") not in ["MONETARY", "INVESTMENT", "REAL_ESTATE", "MACRO", "MICRO", "LIFE"]:
+                term["termCategory"] = "MACRO"
+
         if terms_list:
             terms_list = add_indices_to_terms(content, terms_list)
         
